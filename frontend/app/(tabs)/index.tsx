@@ -261,6 +261,20 @@ function MobileDashboard() {
                 testID="action-tambah-jadwal"
               />
             </View>
+            <View style={styles.gridRow}>
+              <ActionTile
+                label="Impor Siswa"
+                color={colors.brandSecondary}
+                onPress={() => router.push("/import-siswa")}
+                testID="action-impor-siswa"
+              />
+              <ActionTile
+                label="Rekap Instruktur"
+                color={colors.brandTertiary}
+                onPress={() => router.push("/rekap-instruktur")}
+                testID="action-rekap-instruktur"
+              />
+            </View>
           </>
         )}
       </ScrollView>

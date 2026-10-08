@@ -7,6 +7,8 @@ import {
   Wallet,
   CalendarDays,
   UserCircle2,
+  BarChart3,
+  FileSpreadsheet,
 } from "lucide-react-native";
 
 import { colors, radius, spacing } from "@/src/theme";
@@ -15,7 +17,7 @@ type NavItem = {
   key: string;
   label: string;
   Icon: React.ComponentType<{ color?: string; size?: number }>;
-  path: "/" | "/siswa" | "/cashflow" | "/jadwal" | "/profil";
+  path: "/" | "/siswa" | "/cashflow" | "/jadwal" | "/profil" | "/rekap-instruktur" | "/import-siswa";
   seg: string | null;
 };
 
@@ -24,6 +26,8 @@ const NAV: NavItem[] = [
   { key: "siswa", label: "Manajemen Siswa", Icon: Users, path: "/siswa", seg: "siswa" },
   { key: "jadwal", label: "Jadwal Kursus", Icon: CalendarDays, path: "/jadwal", seg: "jadwal" },
   { key: "cashflow", label: "Kas & Keuangan", Icon: Wallet, path: "/cashflow", seg: "cashflow" },
+  { key: "rekap", label: "Rekap Instruktur", Icon: BarChart3, path: "/rekap-instruktur", seg: "rekap-instruktur" },
+  { key: "import", label: "Impor Siswa", Icon: FileSpreadsheet, path: "/import-siswa", seg: "import-siswa" },
   { key: "profil", label: "Pengaturan", Icon: UserCircle2, path: "/profil", seg: "profil" },
 ];
 

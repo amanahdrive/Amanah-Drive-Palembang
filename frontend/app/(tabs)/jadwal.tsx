@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Pencil,
+  BarChart3,
 } from "lucide-react-native";
 
 import { AppHeader } from "@/src/components/app-header";
@@ -118,18 +119,44 @@ export default function JadwalScreen() {
       {isDesktop ? (
         <View style={styles.deskTitleBar}>
           <Text style={styles.deskTitle}>Jadwal Kursus</Text>
-          <TouchableOpacity
-            onPress={() => router.push({ pathname: "/schedule-form", params: { tanggal: selected } })}
-            style={styles.deskPrimaryBtn}
-            activeOpacity={0.85}
-            testID="jadwal-add-desk"
-          >
-            <Plus color={colors.onBrand} size={16} />
-            <Text style={styles.deskPrimaryBtnText}>Tambah Jadwal</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            <TouchableOpacity
+              onPress={() => router.push("/rekap-instruktur")}
+              style={styles.deskSecondaryBtn}
+              activeOpacity={0.85}
+              testID="jadwal-rekap-desk"
+            >
+              <BarChart3 color={colors.brandPrimary} size={14} />
+              <Text style={styles.deskSecondaryBtnText}>Rekap Instruktur</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: "/schedule-form", params: { tanggal: selected } })}
+              style={styles.deskPrimaryBtn}
+              activeOpacity={0.85}
+              testID="jadwal-add-desk"
+            >
+              <Plus color={colors.onBrand} size={16} />
+              <Text style={styles.deskPrimaryBtnText}>Tambah Jadwal</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : (
-        <AppHeader title="Jadwal Instruktur" subtitle="Atur jam mengajar harian" />
+        <AppHeader
+          title="Jadwal Instruktur"
+          subtitle="Atur jam mengajar harian"
+          right={
+            <TouchableOpacity
+              onPress={() => router.push("/rekap-instruktur")}
+              style={styles.rekapBtn}
+              activeOpacity={0.85}
+              testID="jadwal-rekap"
+              hitSlop={6}
+            >
+              <BarChart3 color={colors.brandPrimary} size={14} />
+              <Text style={styles.rekapText}>Rekap</Text>
+            </TouchableOpacity>
+          }
+        />
       )}
 
       <View style={styles.weekBar}>
@@ -437,4 +464,17 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill, backgroundColor: colors.brandPrimary,
   },
   deskPrimaryBtnText: { color: colors.onBrand, fontWeight: "800", fontSize: 12 },
+  deskSecondaryBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: spacing.md, paddingVertical: 9,
+    borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  deskSecondaryBtnText: { color: colors.brandPrimary, fontWeight: "800", fontSize: 12 },
+  rekapBtn: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.pill,
+    borderWidth: 1, borderColor: colors.brandPrimary,
+  },
+  rekapText: { color: colors.brandPrimary, fontWeight: "800", fontSize: 11 },
 });

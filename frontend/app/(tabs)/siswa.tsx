@@ -21,6 +21,9 @@ import {
   Pencil,
   Trash2,
   MessageCircle,
+  Award,
+  Star,
+  Upload,
 } from "lucide-react-native";
 
 import { AppHeader } from "@/src/components/app-header";
@@ -30,6 +33,7 @@ import { colors, radius, spacing } from "@/src/theme";
 import { formatDateID, formatRupiah } from "@/src/lib/format";
 import { toast } from "@/src/components/toast";
 import { openWhatsApp } from "@/src/lib/whatsapp";
+import { downloadSertifikat } from "@/src/lib/pdf";
 import { useIsDesktop } from "@/src/hooks/use-breakpoint";
 import { usesNativeTabs } from "@/src/navigation";
 
@@ -75,18 +79,44 @@ export default function SiswaScreen() {
       {isDesktop ? (
         <View style={styles.deskTitleBar}>
           <Text style={styles.deskTitle}>Manajemen Siswa</Text>
-          <TouchableOpacity
-            onPress={() => router.push("/student-form")}
-            style={styles.deskPrimaryBtn}
-            activeOpacity={0.85}
-            testID="siswa-add-desk"
-          >
-            <Plus color={colors.onBrand} size={16} />
-            <Text style={styles.deskPrimaryBtnText}>Tambah Siswa</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            <TouchableOpacity
+              onPress={() => router.push("/import-siswa")}
+              style={styles.deskSecondaryBtn}
+              activeOpacity={0.85}
+              testID="siswa-import-desk"
+            >
+              <Upload color={colors.brandPrimary} size={14} />
+              <Text style={styles.deskSecondaryBtnText}>Impor Excel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push("/student-form")}
+              style={styles.deskPrimaryBtn}
+              activeOpacity={0.85}
+              testID="siswa-add-desk"
+            >
+              <Plus color={colors.onBrand} size={16} />
+              <Text style={styles.deskPrimaryBtnText}>Tambah Siswa</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : (
-        <AppHeader title="Data Siswa" subtitle="Kelola siswa kursus" />
+        <AppHeader
+          title="Data Siswa"
+          subtitle="Kelola siswa kursus"
+          right={
+            <TouchableOpacity
+              onPress={() => router.push("/import-siswa")}
+              style={styles.importBtn}
+              activeOpacity={0.85}
+              testID="siswa-import"
+              hitSlop={6}
+            >
+              <Upload color={colors.brandPrimary} size={14} />
+              <Text style={styles.importText}>Impor</Text>
+            </TouchableOpacity>
+          }
+        />
       )}
       <FilterChips chips={CHIPS} active={filter} onChange={setFilter} testIDPrefix="siswa-chip" />
 
@@ -257,6 +287,40 @@ function StudentCard({
           <Text style={styles.deleteText}>Hapus</Text>
         </TouchableOpacity>
       </View>
+
+      {student.status === "selesai" ? (
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => downloadSertifikat(student.id, student.nama)}
+            style={[styles.cardBtn, styles.sertifikatBtn]}
+            testID={`student-sertifikat-${student.id}`}
+          >
+            <Award color={colors.onBrand} size={14} />
+            <Text style={styles.sertifikatText}>Sertifikat PDF</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+              const msg =
+                `Halo ${student.nama}, 🎉\n\n` +
+                `Selamat atas kelulusan Anda dari *Amanah Drive*!\n` +
+                `Kami sangat menghargai apabila Anda berkenan membagikan pengalaman:\n\n` +
+                `⭐ *Review Google*: https://g.page/r/amanahdrive_plg/review\n` +
+                `📸 *Follow Instagram*: https://instagram.com/amanahdrive_plg\n` +
+                `🎵 *TikTok*: https://tiktok.com/@amanahdrive_plg\n` +
+                `📘 *Facebook*: https://facebook.com/amanahdrive_plg\n\n` +
+                `Terima kasih sudah belajar bersama kami. Tetap aman di jalan! 🚗`;
+              openWhatsApp(student.telepon, msg);
+            }}
+            style={[styles.cardBtn, styles.testimoniBtn]}
+            testID={`student-testimoni-${student.id}`}
+          >
+            <Star color={colors.onBrand} size={14} />
+            <Text style={styles.testimoniText}>Minta Testimoni</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -356,6 +420,26 @@ const styles = StyleSheet.create({
   deleteText: { color: colors.error, fontWeight: "700", fontSize: 13 },
   waBtn: { borderColor: "#25D366", backgroundColor: "#25D366" },
   waText: { color: colors.onBrand, fontWeight: "800", fontSize: 13 },
+
+  sertifikatBtn: { borderColor: colors.brandPrimary, backgroundColor: colors.brandPrimary },
+  sertifikatText: { color: colors.onBrand, fontWeight: "800", fontSize: 13 },
+  testimoniBtn: { borderColor: colors.warning, backgroundColor: colors.warning },
+  testimoniText: { color: colors.onBrand, fontWeight: "800", fontSize: 13 },
+
+  importBtn: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.pill,
+    borderWidth: 1, borderColor: colors.brandPrimary,
+  },
+  importText: { color: colors.brandPrimary, fontWeight: "800", fontSize: 11 },
+
+  deskSecondaryBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: spacing.md, paddingVertical: 9,
+    borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  deskSecondaryBtnText: { color: colors.brandPrimary, fontWeight: "800", fontSize: 12 },
 
   deskTitleBar: {
     flexDirection: "row",

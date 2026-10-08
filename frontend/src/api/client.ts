@@ -102,6 +102,59 @@ export async function fetchReportCashflowHtml(bulan?: string): Promise<string> {
   return await res.text();
 }
 
+export const sertifikatUrl = (studentId: string) =>
+  `${BASE}/api/students/${studentId}/sertifikat`;
+
+export async function fetchSertifikatHtml(studentId: string): Promise<string> {
+  const res = await fetch(sertifikatUrl(studentId));
+  if (!res.ok) throw new Error(`Sertifikat ${res.status}`);
+  return await res.text();
+}
+
+export const importSiswaTemplateUrl = () => `${BASE}/api/import-siswa/template`;
+
+export async function uploadImportSiswa(file: {
+  uri: string;
+  name: string;
+  mimeType?: string;
+}): Promise<{ created: number; skipped: number; errors: string[] }> {
+  const form = new FormData();
+  // React Native expects { uri, name, type } for file objects.
+  form.append(
+    "file",
+    {
+      uri: file.uri,
+      name: file.name,
+      type: file.mimeType || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    } as unknown as Blob,
+  );
+  const res = await fetch(`${BASE}/api/import-siswa`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Import ${res.status}: ${text}`);
+  }
+  return await res.json();
+}
+
+export type RekapInstruktur = {
+  instruktur: string;
+  total_sesi: number;
+  total_jam: number;
+  estimasi_bagi_hasil: number;
+};
+
+export type RekapInstrukturResponse = {
+  bulan: string;
+  rate_per_jam: number;
+  items: RekapInstruktur[];
+  total_sesi: number;
+  total_jam: number;
+  total_bagi_hasil: number;
+};
+
 export const api = {
   dashboard: () => request<DashboardSummary>("/dashboard"),
   packages: () => request<Package[]>("/packages"),
@@ -146,4 +199,12 @@ export const api = {
     request<Schedule>(`/schedules/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteSchedule: (id: string) =>
     request<{ ok: boolean }>(`/schedules/${id}`, { method: "DELETE" }),
+
+  rekapInstrukturs: (opts: { bulan?: string; rate_per_jam?: number } = {}) => {
+    const p = new URLSearchParams();
+    if (opts.bulan) p.set("bulan", opts.bulan);
+    if (opts.rate_per_jam) p.set("rate_per_jam", String(opts.rate_per_jam));
+    const q = p.toString();
+    return request<RekapInstrukturResponse>(`/reports/instrukturs${q ? `?${q}` : ""}`);
+  },
 };

@@ -44,6 +44,11 @@ export default function RootLayout() {
                   name="schedule-form"
                   options={{ presentation: "modal" }}
                 />
+                <Stack.Screen
+                  name="import-siswa"
+                  options={{ presentation: "modal" }}
+                />
+                <Stack.Screen name="rekap-instruktur" />
                 <Stack.Screen name="profil" />
               </Stack>
               <ToastHost />

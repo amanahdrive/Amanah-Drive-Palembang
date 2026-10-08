@@ -2,33 +2,56 @@ import { Platform, Linking } from "react-native";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 
-import { fetchReportCashflowHtml, reportCashflowUrl } from "@/src/api/client";
+import {
+  fetchReportCashflowHtml,
+  reportCashflowUrl,
+  fetchSertifikatHtml,
+  sertifikatUrl,
+} from "@/src/api/client";
 
-/**
- * Fetch the backend-rendered HTML report and either:
- *  - open it in a new tab on web (user hits Ctrl/Cmd+P to save PDF), or
- *  - render to a PDF file on native and open the share sheet.
- */
-export async function downloadCashflowPdf(bulan?: string): Promise<void> {
+async function openOrShareHtml(html: string, filename: string, dialogTitle: string) {
   if (Platform.OS === "web") {
-    const url = reportCashflowUrl(bulan);
-    const w = (globalThis as unknown as { open?: (u: string, t: string) => void }).open;
-    if (w) {
-      w(url, "_blank");
-    } else {
-      await Linking.openURL(url);
+    const g = globalThis as unknown as { open?: (u: string, t: string) => void };
+    const win = g.open ? g.open("", "_blank") : null;
+    if (win && (win as unknown as { document?: Document }).document) {
+      const w = win as unknown as { document: Document };
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
     }
     return;
   }
-
-  const html = await fetchReportCashflowHtml(bulan);
   const { uri } = await Print.printToFileAsync({ html });
   const canShare = await Sharing.isAvailableAsync();
   if (canShare) {
     await Sharing.shareAsync(uri, {
       UTI: "com.adobe.pdf",
       mimeType: "application/pdf",
-      dialogTitle: "Laporan Cashflow Amanah Drive",
+      dialogTitle,
     });
   }
+}
+
+export async function downloadCashflowPdf(bulan?: string): Promise<void> {
+  if (Platform.OS === "web") {
+    const url = reportCashflowUrl(bulan);
+    const g = globalThis as unknown as { open?: (u: string, t: string) => void };
+    if (g.open) g.open(url, "_blank");
+    else await Linking.openURL(url);
+    return;
+  }
+  const html = await fetchReportCashflowHtml(bulan);
+  await openOrShareHtml(html, "cashflow.pdf", "Laporan Cashflow Amanah Drive");
+}
+
+export async function downloadSertifikat(studentId: string, studentName: string): Promise<void> {
+  if (Platform.OS === "web") {
+    const url = sertifikatUrl(studentId);
+    const g = globalThis as unknown as { open?: (u: string, t: string) => void };
+    if (g.open) g.open(url, "_blank");
+    else await Linking.openURL(url);
+    return;
+  }
+  const html = await fetchSertifikatHtml(studentId);
+  await openOrShareHtml(html, `sertifikat-${studentName}.pdf`, `Sertifikat ${studentName}`);
 }

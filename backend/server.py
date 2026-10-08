@@ -1,15 +1,17 @@
-from fastapi import FastAPI, APIRouter, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File
+from fastapi.responses import HTMLResponse, Response
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import io
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional, Literal
 import uuid
 from datetime import datetime, timezone, timedelta
+from openpyxl import Workbook, load_workbook
 
 
 ROOT_DIR = Path(__file__).parent
@@ -591,6 +593,300 @@ async def report_cashflow(bulan: Optional[str] = None):
     </tbody>
   </table>
   <div class="foot">© {year} Amanah Drive — amanahdrive_plg</div>
+</body>
+</html>
+"""
+    return HTMLResponse(content=html)
+
+
+# ---------- Import Siswa Excel ----------
+STUDENT_IMPORT_COLUMNS = [
+    "nama", "telepon", "paket", "instruktur",
+    "total_pertemuan", "pertemuan_selesai",
+    "harga_paket", "sudah_dibayar", "status", "catatan",
+]
+
+
+@api_router.get("/import-siswa/template")
+async def download_import_template():
+    """Return an XLSX template file users can fill and upload."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Siswa"
+    ws.append(STUDENT_IMPORT_COLUMNS)
+    # Example rows
+    ws.append(["Budi Santoso", "081234567890", "Mobil Manual", "Pak Agus", 10, 2, 1500000, 500000, "on_progress", "Contoh baris"])
+    ws.append(["Siti Rahma", "081298765432", "Mobil Matic", "Bu Dewi", 8, 0, 1400000, 0, "aktif", ""])
+    buf = io.BytesIO()
+    wb.save(buf)
+    data = buf.getvalue()
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=template-impor-siswa.xlsx"},
+    )
+
+
+@api_router.post("/import-siswa")
+async def import_students(file: UploadFile = File(...)):
+    """Import students from an uploaded XLSX file.
+    Expected columns (header row): nama, telepon, paket, instruktur,
+    total_pertemuan, pertemuan_selesai, harga_paket, sudah_dibayar, status, catatan.
+    Rows missing nama or telepon are skipped.
+    """
+    try:
+        raw = await file.read()
+        wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+    except Exception:
+        raise HTTPException(status_code=400, detail="File XLSX tidak valid")
+
+    ws = wb.active
+    rows = ws.iter_rows(values_only=True)
+    try:
+        header = next(rows)
+    except StopIteration:
+        raise HTTPException(status_code=400, detail="File kosong")
+    header_norm = [str(h or "").strip().lower() for h in header]
+    index = {col: (header_norm.index(col) if col in header_norm else -1) for col in STUDENT_IMPORT_COLUMNS}
+
+    created = 0
+    skipped = 0
+    errors: List[str] = []
+
+    def get(row, col):
+        i = index.get(col, -1)
+        if i < 0 or i >= len(row):
+            return None
+        return row[i]
+
+    def to_int(v, default=0):
+        try:
+            if v is None or v == "":
+                return default
+            return int(float(v))
+        except Exception:
+            return default
+
+    for row_no, row in enumerate(rows, start=2):
+        if row is None:
+            continue
+        if all(c is None or (isinstance(c, str) and not c.strip()) for c in row):
+            continue
+        nama = (get(row, "nama") or "").strip() if isinstance(get(row, "nama"), str) else str(get(row, "nama") or "").strip()
+        telepon = (get(row, "telepon") or "")
+        telepon = str(telepon).strip()
+        paket = str(get(row, "paket") or "").strip()
+        if not nama or not telepon:
+            skipped += 1
+            errors.append(f"Baris {row_no}: nama/telepon kosong")
+            continue
+        total = to_int(get(row, "total_pertemuan"), 10)
+        selesai = to_int(get(row, "pertemuan_selesai"), 0)
+        harga = to_int(get(row, "harga_paket"), 0)
+        dibayar = to_int(get(row, "sudah_dibayar"), 0)
+        status_val = str(get(row, "status") or "aktif").strip().lower()
+        if status_val not in ("aktif", "on_progress", "selesai"):
+            status_val = "aktif"
+        # Auto-adjust status from pertemuan
+        if total > 0 and selesai >= total:
+            status_val = "selesai"
+        elif selesai > 0 and status_val == "aktif":
+            status_val = "on_progress"
+        payload = StudentCreate(
+            nama=nama,
+            telepon=telepon,
+            paket=paket or "Mobil Manual",
+            instruktur=str(get(row, "instruktur") or "").strip(),
+            total_pertemuan=total,
+            pertemuan_selesai=selesai,
+            harga_paket=harga,
+            sudah_dibayar=dibayar,
+            status=status_val,  # type: ignore[arg-type]
+            catatan=str(get(row, "catatan") or "").strip(),
+        )
+        data = payload.dict()
+        data["tanggal_daftar"] = now_iso()
+        student = Student(**data)
+        await db.students.insert_one(student.dict().copy())
+        created += 1
+
+    return {"created": created, "skipped": skipped, "errors": errors[:20]}
+
+
+# ---------- Rekap Instruktur ----------
+class RekapInstruktur(BaseModel):
+    instruktur: str
+    total_sesi: int
+    total_jam: float
+    estimasi_bagi_hasil: int
+
+
+class RekapInstrukturResponse(BaseModel):
+    bulan: str
+    rate_per_jam: int
+    items: List[RekapInstruktur]
+    total_sesi: int
+    total_jam: float
+    total_bagi_hasil: int
+
+
+@api_router.get("/reports/instrukturs", response_model=RekapInstrukturResponse)
+async def report_instrukturs(bulan: Optional[str] = None, rate_per_jam: int = 50000):
+    """Rekap jam mengajar & bagi hasil per instruktur dari jadwal bulan tertentu."""
+    now = datetime.now(timezone.utc)
+    if bulan:
+        try:
+            year, month = [int(x) for x in bulan.split("-")]
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid bulan format, use YYYY-MM")
+    else:
+        year, month = now.year, now.month
+    prefix = f"{year:04d}-{month:02d}-"
+
+    rows = await db.schedules.find(
+        {"deleted_at": {"$exists": False}, "tanggal": {"$regex": f"^{prefix}"}},
+        {"_id": 0},
+    ).to_list(5000)
+
+    def hours_between(a: str, b: str) -> float:
+        try:
+            ha, ma = [int(x) for x in a.split(":")]
+            hb, mb = [int(x) for x in b.split(":")]
+            return max(0.0, (hb + mb / 60.0) - (ha + ma / 60.0))
+        except Exception:
+            return 0.0
+
+    agg: dict[str, dict] = {}
+    for s in rows:
+        key = (s.get("instruktur") or "-").strip() or "-"
+        d = agg.setdefault(key, {"total_sesi": 0, "total_jam": 0.0})
+        d["total_sesi"] += 1
+        d["total_jam"] += hours_between(s.get("jam_mulai", ""), s.get("jam_selesai", ""))
+
+    items = []
+    total_sesi = 0
+    total_jam = 0.0
+    for name, d in sorted(agg.items(), key=lambda kv: kv[1]["total_jam"], reverse=True):
+        hrs = round(d["total_jam"], 2)
+        bagi = int(round(hrs * rate_per_jam))
+        items.append(RekapInstruktur(instruktur=name, total_sesi=d["total_sesi"], total_jam=hrs, estimasi_bagi_hasil=bagi))
+        total_sesi += d["total_sesi"]
+        total_jam += hrs
+
+    return RekapInstrukturResponse(
+        bulan=f"{year:04d}-{month:02d}",
+        rate_per_jam=rate_per_jam,
+        items=items,
+        total_sesi=total_sesi,
+        total_jam=round(total_jam, 2),
+        total_bagi_hasil=sum(x.estimasi_bagi_hasil for x in items),
+    )
+
+
+# ---------- Sertifikat Siswa ----------
+@api_router.get("/students/{student_id}/sertifikat", response_class=HTMLResponse)
+async def student_sertifikat(student_id: str):
+    row = await db.students.find_one({"id": student_id, "deleted_at": {"$exists": False}}, {"_id": 0})
+    if not row:
+        raise HTTPException(status_code=404, detail="Student not found")
+    s = Student(**row)
+    today = datetime.now(timezone.utc)
+    today_id = today.strftime("%d %B %Y")
+    bulan_id = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"][today.month - 1]
+    tgl_str = f"{today.day} {bulan_id} {today.year}"
+    cert_no = f"AD/{today.year}/{s.id[:6].upper()}"
+
+    html = f"""<!doctype html>
+<html lang=\"id\">
+<head>
+<meta charset=\"utf-8\"/>
+<title>Sertifikat {s.nama} - Amanah Drive</title>
+<style>
+  @page {{ size: A4 landscape; margin: 0; }}
+  * {{ box-sizing: border-box; }}
+  body {{
+    margin: 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    background: #f1f5f9;
+  }}
+  .page {{
+    width: 100%;
+    min-height: 100vh;
+    padding: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }}
+  .cert {{
+    width: 1120px;
+    aspect-ratio: 1120/780;
+    background: linear-gradient(135deg, #ffffff 0%, #eaf4fb 100%);
+    border: 14px double #00267A;
+    border-radius: 20px;
+    padding: 56px 72px;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0,38,122,0.25);
+  }}
+  .corner {{
+    position: absolute; width: 90px; height: 90px;
+    border: 4px solid #3DD0F2; border-radius: 10px;
+  }}
+  .c1 {{ top: 24px; left: 24px; border-right: 0; border-bottom: 0; }}
+  .c2 {{ top: 24px; right: 24px; border-left: 0; border-bottom: 0; }}
+  .c3 {{ bottom: 24px; left: 24px; border-right: 0; border-top: 0; }}
+  .c4 {{ bottom: 24px; right: 24px; border-left: 0; border-top: 0; }}
+  .brand {{ text-align: center; }}
+  .brand .name {{ font-family: Arial, sans-serif; font-size: 36px; color: #00267A; font-weight: 900; letter-spacing: 1px; }}
+  .brand .tag {{ font-family: Arial, sans-serif; font-size: 13px; color: #005b93; letter-spacing: 2px; margin-top: 4px; }}
+  .title {{ margin-top: 32px; text-align: center; font-size: 48px; font-weight: 900; color: #00267A; letter-spacing: 3px; }}
+  .subtitle {{ text-align: center; font-size: 14px; letter-spacing: 4px; color: #005b93; margin-top: 4px; }}
+  .awarded {{ text-align: center; margin-top: 28px; font-size: 15px; color: #334155; }}
+  .student {{ text-align: center; margin-top: 10px; font-size: 44px; font-family: 'Brush Script MT', 'Pacifico', cursive; color: #005b93; border-bottom: 2px solid #3DD0F2; padding-bottom: 10px; max-width: 760px; margin-left: auto; margin-right: auto; }}
+  .body {{ text-align: center; margin-top: 24px; font-size: 15px; color: #334155; line-height: 1.6; max-width: 820px; margin-left: auto; margin-right: auto; }}
+  .body b {{ color: #00267A; }}
+  .meta {{ display: flex; justify-content: space-between; align-items: flex-end; margin-top: 48px; padding: 0 60px; }}
+  .meta .block {{ text-align: center; min-width: 180px; }}
+  .meta .label {{ font-size: 11px; color: #64748b; letter-spacing: 1px; }}
+  .meta .value {{ font-size: 14px; font-weight: 800; color: #00267A; margin-top: 2px; }}
+  .seal {{ width: 110px; height: 110px; border: 4px solid #00267A; border-radius: 55px; display: inline-flex; align-items: center; justify-content: center; color: #00267A; font-weight: 900; font-family: Arial, sans-serif; font-size: 11px; text-align: center; }}
+  .footer {{ text-align: center; margin-top: 22px; font-size: 11px; color: #64748b; letter-spacing: 2px; }}
+</style>
+</head>
+<body>
+<div class=\"page\">
+  <div class=\"cert\">
+    <div class=\"corner c1\"></div><div class=\"corner c2\"></div>
+    <div class=\"corner c3\"></div><div class=\"corner c4\"></div>
+    <div class=\"brand\">
+      <div class=\"name\">AMANAH DRIVE</div>
+      <div class=\"tag\">TERAMPIL MENGEMUDI · AMAN DI JALAN</div>
+    </div>
+    <div class=\"title\">SERTIFIKAT</div>
+    <div class=\"subtitle\">KELULUSAN KURSUS MENGEMUDI</div>
+    <div class=\"awarded\">Diberikan dengan bangga kepada:</div>
+    <div class=\"student\">{s.nama}</div>
+    <div class=\"body\">
+      Yang telah menyelesaikan <b>Paket {s.paket}</b> sebanyak
+      <b>{s.total_pertemuan} pertemuan</b> di Amanah Drive dengan bimbingan instruktur
+      <b>{s.instruktur or '-'}</b>, dan dinyatakan <b>LULUS</b> serta memiliki keterampilan
+      mengemudi yang baik, aman, dan bertanggung jawab di jalan raya.
+    </div>
+    <div class=\"meta\">
+      <div class=\"block\">
+        <div class=\"label\">NOMOR SERTIFIKAT</div>
+        <div class=\"value\">{cert_no}</div>
+      </div>
+      <div class=\"block\">
+        <div class=\"seal\">AMANAH<br/>DRIVE<br/>PLG</div>
+      </div>
+      <div class=\"block\">
+        <div class=\"label\">TANGGAL</div>
+        <div class=\"value\">{tgl_str}</div>
+      </div>
+    </div>
+    <div class=\"footer\">AMANAH DRIVE PALEMBANG · amanahdrive_plg</div>
+  </div>
+</div>
 </body>
 </html>
 """
