@@ -1,0 +1,161 @@
+{
+  "app_name": "Amanah Drive",
+  "personality": "1 iOS-Native Clean",
+  "personality_one_liner": "Professional, clean, and highly trustworthy business management tool with clear data hierarchy and a strong Indonesian identity.",
+  "color": {
+    "surface": "#FFFFFF",
+    "onSurface": "#111827",
+    "surfaceSecondary": "#F4F7FA",
+    "onSurfaceSecondary": "#111827",
+    "surfaceTertiary": "#E8EEF4",
+    "onSurfaceTertiary": "#111827",
+    "surfaceInverse": "#1A202C",
+    "onSurfaceInverse": "#FFFFFF",
+    "brand": "#00267A",
+    "onBrand": "#FFFFFF",
+    "brandPrimary": "#00267A",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#005b93",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#3DD0F2",
+    "onBrandTertiary": "#00267A",
+    "success": "#10B981",
+    "onSuccess": "#FFFFFF",
+    "warning": "#F59E0B",
+    "onWarning": "#FFFFFF",
+    "error": "#EF4444",
+    "onError": "#FFFFFF",
+    "info": "#3B82F6",
+    "onInfo": "#FFFFFF",
+    "border": "#E5E7EB",
+    "borderStrong": "#D1D5DB",
+    "divider": "#F3F4F6",
+    "muted": "#6B7280"
+  },
+  "typography": {
+    "displayFontFamily": "Plus Jakarta Sans",
+    "textFontFamily": "Plus Jakarta Sans",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous padding around cards to avoid dense dashboard feel. Maintain comfortable vertical rhythm and clear grouping of financial vs operational data.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "1",
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": "true",
+    "do's": [
+      "Use frosted glass on sticky headers over scrollable student and cashflow lists.",
+      "Use on the bottom tab bar.",
+      "Apply subtle glass overlay on the primary dashboard summary card if placed over a branded background."
+    ],
+    "dont's": [
+      "Do not blur standard list rows or form fields.",
+      "Do not overuse blur on dense data screens where contrast is key."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Dashboard Operasional",
+      "purpose": "High-level snapshot of the driving school's finances and active students.",
+      "states": {
+        "loading": "Centered spinner with a faint placeholder layout of the cards.",
+        "empty": "No data yet. Show a soft placeholder indicating 'Add your first transaction or student' with primary CTA.",
+        "error": "Failed to load dashboard data. Readable message + Retry button."
+      },
+      "layout": "Vertical hierarchy. Top: Sticky header with 'Amanah Drive' local logo (from assets). Next: A primary hero card (Sisa Kas / Remaining Balance) displaying total value boldly, optionally using a deep blue #00267A gradient or sitting on a subtle driving-themed background with a gradient scrim. Below hero: A 2-column grid row for 'Kas Masuk' and 'Kas Keluar' summary this month. Below that: A section for 'Siswa Aktif' and 'Siswa On Progress' metrics with a mini chart or progress indicator. Primary action buttons (Add Income, Add Expense) should be prominent."
+    },
+    {
+      "name": "Data Siswa",
+      "purpose": "List and manage students with their driving course progress.",
+      "states": {
+        "loading": "Skeleton list rows.",
+        "empty": "Illustration of an empty road, 'Belum ada data siswa.' + 'Tambah Siswa' CTA.",
+        "error": "Failed to fetch students. Retry button."
+      },
+      "layout": "Header with title. Sticky filter row below header with horizontal pills (Semua, Aktif, On Progress, Selesai) using brandTertiary (#3DD0F2) for active states. List of students. Each list card contains: Student Name, Status Badge (e.g., pill with #3DD0F2 background and #00267A text), and a progress bar (Pertemuan done / total pertemuan) if status is 'On Progress'. Floating Action Button (FAB) for 'Tambah Siswa' anchored at the bottom."
+    },
+    {
+      "name": "Cashflow",
+      "purpose": "Track incoming and outgoing financial transactions.",
+      "states": {
+        "loading": "Skeleton list rows.",
+        "empty": "Illustration of an empty wallet/clean street, 'Belum ada transaksi.' + CTA.",
+        "error": "Failed to load transactions. Retry button."
+      },
+      "layout": "Header with 'Cashflow'. Sticky filter row (Semua, Kas Masuk, Kas Keluar, Bulan Ini). Summary row showing Total Masuk vs Total Keluar. Vertical list of transactions showing category (Pembayaran Kursus, Gaji Instruktur, BBM, dll), date, and amount. Amounts are green (#10B981) for Masuk and red (#EF4444) for Keluar. FAB at the bottom to log a new transaction."
+    },
+    {
+      "name": "Profil",
+      "purpose": "Settings and information about the driving school, including social links.",
+      "states": {
+        "loading": "Spinner.",
+        "empty": "Standard view.",
+        "error": "Standard view."
+      },
+      "layout": "Top banner using a driving/steering wheel imagery with a dark vertical gradient scrim to ensure readability of overlaid text. White text showing the Admin/School name and Tagline ('Terampil Mengemudi, Aman di Jalan.'). Below banner: list of settings and social media links (Instagram, TikTok, Facebook: amanahdrive_plg) featuring real brand icons. Use brandPrimary (#00267A) tinted icon containers for list items."
+    }
+  ],
+  "images": {
+    "dashboard_hero_bg": {
+      "url": "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDN8MHwxfHNlYXJjaHwxfHxkcml2aW5nJTIwc3RlZXJpbmclMjB3aGVlbCUyMGRhc2hib2FyZHxlbnwwfHx8fDE3OTE0MTgyODl8MA&ixlib=rb-4.1.0&q=85",
+      "dark": "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDN8MHwxfHNlYXJjaHwxfHxkcml2aW5nJTIwc3RlZXJpbmclMjB3aGVlbCUyMGRhc2hib2FyZHxlbnwwfHx8fDE3OTE0MTgyODl8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Steering wheel background for profile banner or dashboard hero"
+    },
+    "empty_state_street": {
+      "url": "https://images.unsplash.com/photo-1695063071035-897d645fbefd?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NjV8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBlbXB0eSUyMHN0cmVldCUyMHJvYWQlMjBjbGVhbnxlbnwwfHx8fDE3OTE0MTgyODl8MA&ixlib=rb-4.1.0&q=85",
+      "dark": "https://images.unsplash.com/photo-1695063071035-897d645fbefd?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NjV8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBlbXB0eSUyMHN0cmVldCUyMHJvYWQlMjBjbGVhbnxlbnwwfHx8fDE3OTE0MTgyODl8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Empty modern street used for empty states"
+    }
+  },
+  "haptics": {
+    "tab_press": "light",
+    "filter_chip_select": "light",
+    "primary_button_press": "medium",
+    "fab_press": "medium",
+    "success_action": "success"
+  },
+  "instructions_to_main_agent": [
+    "Use the specific local logo file at `/app/frontend/assets/images/logo.jpeg` for the header of the app.",
+    "Implement exactly the requested brand colors: #00267A (deep blue) for primary, #005b93 (mid blue) for secondary, and #3DD0F2 (cyan) for tertiary accents/highlights.",
+    "Cyan (#3DD0F2) has poor contrast against pure white, so use it as a background for chips or badges with dark text (#00267A or #111827), or use it for active state underlines/borders.",
+    "For the Cashflow transactions, color code amounts: Green (#10B981) for Masuk, Red (#EF4444) for Keluar.",
+    "Ensure 'Siswa On Progress' uses an actual progress bar component displaying completed sessions vs total sessions.",
+    "Make sure forms for 'Kas Masuk' and 'Kas Keluar' include their respective specific dropdown categories as requested (e.g. Pembayaran Kursus, Gaji Instruktur, BBM).",
+    "When displaying background images with overlaid text (like the profile banner), always implement a vertical gradient scrim layer to guarantee text readability.",
+    "Use Phosphor icons with consistent weight across the app.",
+    "Follow standard iOS-Native Clean layout principles: generous padding, one main action per view, and cards that do not touch the screen edges."
+  ]
+}
