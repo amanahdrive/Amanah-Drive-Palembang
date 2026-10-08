@@ -1,14 +1,17 @@
-import { Platform } from "react-native";
+import { Platform, useWindowDimensions } from "react-native";
 import { Tabs } from "expo-router";
 import {
   NativeTabs,
 } from "expo-router/unstable-native-tabs";
-import { LayoutDashboard, Users, Wallet, UserCircle2 } from "lucide-react-native";
+import { LayoutDashboard, Users, Wallet, CalendarDays } from "lucide-react-native";
 
 import { usesNativeTabs } from "@/src/navigation";
 import { colors } from "@/src/theme";
 
 export default function TabsLayout() {
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === "web" && width >= 1024;
+
   if (usesNativeTabs) {
     return (
       <NativeTabs>
@@ -24,9 +27,9 @@ export default function TabsLayout() {
           <NativeTabs.Trigger.Icon sf="banknote.fill" />
           <NativeTabs.Trigger.Label>Cashflow</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="profil">
-          <NativeTabs.Trigger.Icon sf="person.crop.circle.fill" />
-          <NativeTabs.Trigger.Label>Profil</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger name="jadwal">
+          <NativeTabs.Trigger.Icon sf="calendar" />
+          <NativeTabs.Trigger.Label>Jadwal</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
       </NativeTabs>
     );
@@ -40,11 +43,13 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: colors.muted,
         tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
         tabBarItemStyle: { alignSelf: "center" },
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-          ...(Platform.OS === "web" ? { height: 64 } : {}),
-        },
+        tabBarStyle: isDesktop
+          ? { display: "none" }
+          : {
+              backgroundColor: colors.surface,
+              borderTopColor: colors.border,
+              ...(Platform.OS === "web" ? { height: 64 } : {}),
+            },
       }}
     >
       <Tabs.Screen
@@ -74,13 +79,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="profil"
+        name="jadwal"
         options={{
-          title: "Profil",
+          title: "Jadwal",
           tabBarIcon: ({ color, size }) => (
-            <UserCircle2 color={color} size={size} />
+            <CalendarDays color={color} size={size} />
           ),
-          tabBarButtonTestID: "tab-profil",
+          tabBarButtonTestID: "tab-jadwal",
         }}
       />
     </Tabs>

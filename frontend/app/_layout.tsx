@@ -6,8 +6,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 
 import { ErrorBoundary } from "@/src/components/error-boundary";
+import { ResponsiveShell } from "@/src/components/responsive-shell";
 import { ToastHost } from "@/src/components/toast";
-import { WebFrame } from "@/src/components/web-frame";
 import { queryClient } from "@/src/query-client";
 
 LogBox.ignoreAllLogs(true);
@@ -29,7 +29,7 @@ export default function RootLayout() {
         <SafeAreaProvider>
           <KeyboardProvider>
             <StatusBar style="dark" />
-            <WebFrame>
+            <ResponsiveShell>
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen
@@ -40,9 +40,14 @@ export default function RootLayout() {
                   name="transaction-form"
                   options={{ presentation: "modal" }}
                 />
+                <Stack.Screen
+                  name="schedule-form"
+                  options={{ presentation: "modal" }}
+                />
+                <Stack.Screen name="profil" />
               </Stack>
               <ToastHost />
-            </WebFrame>
+            </ResponsiveShell>
           </KeyboardProvider>
         </SafeAreaProvider>
       </QueryClientProvider>

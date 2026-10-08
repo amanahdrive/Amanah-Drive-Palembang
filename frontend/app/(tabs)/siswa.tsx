@@ -20,6 +20,7 @@ import {
   Circle,
   Pencil,
   Trash2,
+  MessageCircle,
 } from "lucide-react-native";
 
 import { AppHeader } from "@/src/components/app-header";
@@ -28,6 +29,8 @@ import { api, Student } from "@/src/api/client";
 import { colors, radius, spacing } from "@/src/theme";
 import { formatDateID, formatRupiah } from "@/src/lib/format";
 import { toast } from "@/src/components/toast";
+import { openWhatsApp } from "@/src/lib/whatsapp";
+import { useIsDesktop } from "@/src/hooks/use-breakpoint";
 import { usesNativeTabs } from "@/src/navigation";
 
 const CHIPS = [
@@ -41,6 +44,7 @@ export default function SiswaScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const qc = useQueryClient();
+  const isDesktop = useIsDesktop();
   const [filter, setFilter] = useState("semua");
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
 
@@ -68,7 +72,22 @@ export default function SiswaScreen() {
 
   return (
     <View style={styles.screen} testID="siswa-screen">
-      <AppHeader title="Data Siswa" subtitle="Kelola siswa kursus" />
+      {isDesktop ? (
+        <View style={styles.deskTitleBar}>
+          <Text style={styles.deskTitle}>Manajemen Siswa</Text>
+          <TouchableOpacity
+            onPress={() => router.push("/student-form")}
+            style={styles.deskPrimaryBtn}
+            activeOpacity={0.85}
+            testID="siswa-add-desk"
+          >
+            <Plus color={colors.onBrand} size={16} />
+            <Text style={styles.deskPrimaryBtnText}>Tambah Siswa</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <AppHeader title="Data Siswa" subtitle="Kelola siswa kursus" />
+      )}
       <FilterChips chips={CHIPS} active={filter} onChange={setFilter} testIDPrefix="siswa-chip" />
 
       <FlatList
@@ -106,15 +125,17 @@ export default function SiswaScreen() {
         )}
       />
 
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={() => router.push("/student-form")}
-        style={[styles.fab, { bottom: bottomChrome + 16 }]}
-        testID="siswa-fab-add"
-      >
-        <Plus color={colors.onBrand} size={22} />
-        <Text style={styles.fabText}>Tambah Siswa</Text>
-      </TouchableOpacity>
+      {!isDesktop ? (
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => router.push("/student-form")}
+          style={[styles.fab, { bottom: bottomChrome + 16 }]}
+          testID="siswa-fab-add"
+        >
+          <Plus color={colors.onBrand} size={22} />
+          <Text style={styles.fabText}>Tambah Siswa</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
@@ -159,6 +180,26 @@ function StudentCard({
         <MetaCell label="Daftar" value={formatDateID(student.tanggal_daftar)} />
         <MetaCell label="Harga" value={formatRupiah(student.harga_paket)} />
       </View>
+      <View style={styles.metaRow}>
+        <MetaCell label="Dibayar" value={formatRupiah(student.sudah_dibayar || 0)} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.metaLabel}>Sisa Tagihan</Text>
+          <Text
+            style={[
+              styles.metaValue,
+              {
+                color:
+                  (student.harga_paket - (student.sudah_dibayar || 0)) > 0
+                    ? colors.error
+                    : colors.success,
+              },
+            ]}
+            numberOfLines={1}
+          >
+            {formatRupiah(student.harga_paket - (student.sudah_dibayar || 0))}
+          </Text>
+        </View>
+      </View>
 
       <View style={styles.progressWrap}>
         <View style={styles.progressHead}>
@@ -173,6 +214,30 @@ function StudentCard({
       </View>
 
       <View style={styles.actionsRow}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => {
+            const sisa = student.harga_paket - (student.sudah_dibayar || 0);
+            const paymentLine =
+              sisa > 0
+                ? `• Sisa tagihan: *${formatRupiah(sisa)}*`
+                : `• Status pembayaran: *LUNAS* ✅`;
+            const msg =
+              `Halo ${student.nama}, 🙏\n\n` +
+              `Berikut info progres kursus di *Amanah Drive*:\n` +
+              `• Paket: ${student.paket}\n` +
+              `• Pertemuan: ${student.pertemuan_selesai}/${student.total_pertemuan}\n` +
+              `• Instruktur: ${student.instruktur || "-"}\n` +
+              `${paymentLine}\n\n` +
+              `Terima kasih 🚗`;
+            openWhatsApp(student.telepon, msg);
+          }}
+          style={[styles.cardBtn, styles.waBtn]}
+          testID={`student-wa-${student.id}`}
+        >
+          <MessageCircle color={colors.onBrand} size={14} />
+          <Text style={styles.waText}>WA</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={onEdit}
@@ -289,6 +354,26 @@ const styles = StyleSheet.create({
   editText: { color: colors.brandPrimary, fontWeight: "700", fontSize: 13 },
   deleteBtn: { borderColor: colors.error, backgroundColor: colors.surface },
   deleteText: { color: colors.error, fontWeight: "700", fontSize: 13 },
+  waBtn: { borderColor: "#25D366", backgroundColor: "#25D366" },
+  waText: { color: colors.onBrand, fontWeight: "800", fontSize: 13 },
+
+  deskTitleBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
+  },
+  deskTitle: {
+    fontSize: 22, fontWeight: "900", color: colors.onSurface, letterSpacing: 0.2,
+  },
+  deskPrimaryBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: spacing.md, paddingVertical: 9,
+    borderRadius: radius.pill, backgroundColor: colors.brandPrimary,
+  },
+  deskPrimaryBtnText: { color: colors.onBrand, fontWeight: "800", fontSize: 12 },
 
   fab: {
     position: "absolute",

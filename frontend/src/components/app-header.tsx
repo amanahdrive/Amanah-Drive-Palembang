@@ -1,6 +1,8 @@
 import React from "react";
-import { View, Text, StyleSheet, Image, Platform } from "react-native";
+import { View, Text, StyleSheet, Image, Platform, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { UserCircle2 } from "lucide-react-native";
 
 import { colors, spacing } from "@/src/theme";
 
@@ -8,11 +10,13 @@ type Props = {
   title?: string;
   subtitle?: string;
   showLogo?: boolean;
+  showProfil?: boolean;
   right?: React.ReactNode;
 };
 
-export function AppHeader({ title, subtitle, showLogo = true, right }: Props) {
+export function AppHeader({ title, subtitle, showLogo = true, showProfil = false, right }: Props) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   return (
     <View style={[styles.wrapper, { paddingTop: insets.top + 8 }]} testID="app-header">
       <View style={styles.row}>
@@ -33,6 +37,16 @@ export function AppHeader({ title, subtitle, showLogo = true, right }: Props) {
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
         {right ? <View style={styles.right}>{right}</View> : null}
+        {showProfil ? (
+          <TouchableOpacity
+            onPress={() => router.push("/profil")}
+            style={styles.profilBtn}
+            testID="header-profil-btn"
+            hitSlop={10}
+          >
+            <UserCircle2 color={colors.brandPrimary} size={26} />
+          </TouchableOpacity>
+        ) : null}
       </View>
     </View>
   );
@@ -70,4 +84,11 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   right: { marginLeft: spacing.sm },
+  profilBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 20,
+  },
 });

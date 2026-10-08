@@ -29,6 +29,7 @@ export type Student = {
   tanggal_daftar: string;
   status: "aktif" | "on_progress" | "selesai";
   harga_paket: number;
+  sudah_dibayar: number;
   catatan?: string;
   created_at: string;
   updated_at: string;
@@ -54,6 +55,29 @@ export type Package = {
   deskripsi: string;
 };
 
+export type Schedule = {
+  id: string;
+  tanggal: string; // YYYY-MM-DD
+  jam_mulai: string; // HH:MM
+  jam_selesai: string; // HH:MM
+  instruktur: string;
+  siswa_id?: string;
+  siswa_nama?: string;
+  catatan?: string;
+  created_at: string;
+};
+
+export type PaymentReminder = {
+  siswa_id: string;
+  nama: string;
+  telepon: string;
+  paket: string;
+  harga_paket: number;
+  sudah_dibayar: number;
+  sisa_bayar: number;
+  status: string;
+};
+
 export type DashboardSummary = {
   total_siswa: number;
   siswa_aktif: number;
@@ -65,13 +89,25 @@ export type DashboardSummary = {
   kas_masuk_total: number;
   kas_keluar_total: number;
   chart_7hari: { tanggal: string; label: string; masuk: number; keluar: number }[];
+  pengingat_pembayaran: PaymentReminder[];
+  jadwal_hari_ini: Schedule[];
 };
+
+export const reportCashflowUrl = (bulan?: string) =>
+  `${BASE}/api/reports/cashflow${bulan ? `?bulan=${bulan}` : ""}`;
+
+export async function fetchReportCashflowHtml(bulan?: string): Promise<string> {
+  const res = await fetch(reportCashflowUrl(bulan));
+  if (!res.ok) throw new Error(`Report ${res.status}`);
+  return await res.text();
+}
 
 export const api = {
   dashboard: () => request<DashboardSummary>("/dashboard"),
   packages: () => request<Package[]>("/packages"),
   categories: () =>
     request<{ masuk: string[]; keluar: string[] }>("/categories"),
+  instrukturs: () => request<string[]>("/instrukturs"),
 
   listStudents: (status?: string) =>
     request<Student[]>(`/students${status && status !== "semua" ? `?status=${status}` : ""}`),
@@ -96,4 +132,18 @@ export const api = {
     request<Transaction>(`/transactions/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteTransaction: (id: string) =>
     request<{ ok: boolean }>(`/transactions/${id}`, { method: "DELETE" }),
+
+  listSchedules: (opts: { tanggal?: string; instruktur?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (opts.tanggal) params.set("tanggal", opts.tanggal);
+    if (opts.instruktur) params.set("instruktur", opts.instruktur);
+    const q = params.toString();
+    return request<Schedule[]>(`/schedules${q ? `?${q}` : ""}`);
+  },
+  createSchedule: (body: Partial<Schedule>) =>
+    request<Schedule>("/schedules", { method: "POST", body: JSON.stringify(body) }),
+  updateSchedule: (id: string, body: Partial<Schedule>) =>
+    request<Schedule>(`/schedules/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteSchedule: (id: string) =>
+    request<{ ok: boolean }>(`/schedules/${id}`, { method: "DELETE" }),
 };

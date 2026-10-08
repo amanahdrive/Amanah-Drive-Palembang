@@ -33,6 +33,7 @@ type Form = {
   total_pertemuan: string;
   pertemuan_selesai: string;
   harga_paket: string;
+  sudah_dibayar: string;
   catatan: string;
   status: Student["status"];
 };
@@ -45,6 +46,7 @@ const DEFAULT_FORM: Form = {
   total_pertemuan: "10",
   pertemuan_selesai: "0",
   harga_paket: "0",
+  sudah_dibayar: "0",
   catatan: "",
   status: "aktif",
 };
@@ -78,6 +80,7 @@ export default function StudentFormScreen() {
         total_pertemuan: String(existing.total_pertemuan),
         pertemuan_selesai: String(existing.pertemuan_selesai),
         harga_paket: String(existing.harga_paket),
+        sudah_dibayar: String(existing.sudah_dibayar ?? 0),
         catatan: existing.catatan ?? "",
         status: existing.status,
       });
@@ -107,6 +110,7 @@ export default function StudentFormScreen() {
       total_pertemuan: parseNumberInput(form.total_pertemuan) || 0,
       pertemuan_selesai: parseNumberInput(form.pertemuan_selesai) || 0,
       harga_paket: parseNumberInput(form.harga_paket) || 0,
+      sudah_dibayar: parseNumberInput(form.sudah_dibayar) || 0,
       catatan: form.catatan.trim(),
       status: form.status,
     };
@@ -241,6 +245,24 @@ export default function StudentFormScreen() {
           />
         </Field>
 
+        <Field label="Sudah Dibayar (Rp)">
+          <TextInput
+            value={formatRupiah(parseNumberInput(form.sudah_dibayar)).replace("Rp ", "")}
+            onChangeText={(v) => setForm((f) => ({ ...f, sudah_dibayar: v.replace(/[^\d]/g, "") }))}
+            keyboardType="number-pad"
+            style={styles.input}
+            testID="input-sudah-dibayar"
+          />
+          <Text style={styles.helpText}>
+            Sisa tagihan:{" "}
+            <Text style={{ fontWeight: "800", color: colors.error }}>
+              {formatRupiah(
+                Math.max(0, parseNumberInput(form.harga_paket) - parseNumberInput(form.sudah_dibayar)),
+              )}
+            </Text>
+          </Text>
+        </Field>
+
         <Field label="Status">
           <TouchableOpacity
             onPress={() => setStatusOpen((v) => !v)}
@@ -327,6 +349,7 @@ const styles = StyleSheet.create({
   headerTitle: { flex: 1, textAlign: "center", fontSize: 16, fontWeight: "800", color: colors.onSurface },
 
   label: { fontSize: 12, fontWeight: "700", color: colors.onSurfaceSecondary, marginBottom: 6, letterSpacing: 0.2 },
+  helpText: { fontSize: 11, color: colors.muted, marginTop: 6 },
   input: {
     backgroundColor: colors.surfaceSecondary,
     borderRadius: radius.md,

@@ -10,11 +10,11 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter, Stack } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { Info, ShieldCheck } from "lucide-react-native";
+import { Info, ShieldCheck, ArrowLeft } from "lucide-react-native";
 
 import { colors, radius, spacing } from "@/src/theme";
-import { usesNativeTabs } from "@/src/navigation";
 import { InstagramIcon, TikTokIcon, FacebookIcon } from "@/src/components/brand-icons";
 
 const SOCIALS: {
@@ -53,7 +53,7 @@ const SOCIALS: {
 
 export default function ProfilScreen() {
   const insets = useSafeAreaInsets();
-  const bottomChrome = usesNativeTabs ? insets.bottom : 0;
+  const router = useRouter();
 
   const open = (url: string) => {
     Linking.openURL(url).catch(() => {});
@@ -61,8 +61,9 @@ export default function ProfilScreen() {
 
   return (
     <View style={styles.screen} testID="profil-screen">
+      <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
-        contentContainerStyle={{ paddingBottom: (bottomChrome || 0) + spacing.xxl }}
+        contentContainerStyle={{ paddingBottom: spacing.xxl }}
       >
         <View style={[styles.banner, { paddingTop: insets.top + spacing.xl }]}>
           <LinearGradient
@@ -71,10 +72,18 @@ export default function ProfilScreen() {
             end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFill}
           />
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={[styles.backBtn, { top: insets.top + 8 }]}
+            testID="profil-back"
+            hitSlop={10}
+          >
+            <ArrowLeft color={colors.onBrand} size={22} />
+          </TouchableOpacity>
           <View style={styles.logoWrap}>
             <Image
               // eslint-disable-next-line @typescript-eslint/no-require-imports
-              source={require("../../assets/images/logo.jpeg")}
+              source={require("../assets/images/logo.jpeg")}
               style={styles.logo}
               resizeMode="contain"
             />
@@ -140,6 +149,16 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
     alignItems: "center",
     overflow: "hidden",
+  },
+  backBtn: {
+    position: "absolute",
+    left: spacing.lg,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   logoWrap: {
     width: 100,

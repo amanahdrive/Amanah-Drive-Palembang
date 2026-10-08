@@ -12,7 +12,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { ArrowDownCircle, ArrowUpCircle, Plus, Trash2, CalendarDays } from "lucide-react-native";
+import { ArrowDownCircle, ArrowUpCircle, Plus, Trash2, CalendarDays, FileDown } from "lucide-react-native";
 
 import { AppHeader } from "@/src/components/app-header";
 import { FilterChips } from "@/src/components/filter-chips";
@@ -20,6 +20,8 @@ import { api, Transaction } from "@/src/api/client";
 import { colors, radius, spacing } from "@/src/theme";
 import { formatRupiah, formatDateTimeID } from "@/src/lib/format";
 import { toast } from "@/src/components/toast";
+import { downloadCashflowPdf } from "@/src/lib/pdf";
+import { useIsDesktop } from "@/src/hooks/use-breakpoint";
 import { usesNativeTabs } from "@/src/navigation";
 
 const CHIPS = [
@@ -33,6 +35,7 @@ export default function CashflowScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const qc = useQueryClient();
+  const isDesktop = useIsDesktop();
   const [filter, setFilter] = useState("semua");
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
 
@@ -74,7 +77,48 @@ export default function CashflowScreen() {
 
   return (
     <View style={styles.screen} testID="cashflow-screen">
-      <AppHeader title="Cashflow" subtitle="Kas masuk & keluar" />
+      {isDesktop ? (
+        <View style={styles.deskTitleBar}>
+          <Text style={styles.deskTitle}>Kas & Keuangan</Text>
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            <TouchableOpacity
+              onPress={() => downloadCashflowPdf()}
+              style={styles.deskSecondaryBtn}
+              activeOpacity={0.85}
+              testID="cashflow-pdf-desk"
+            >
+              <FileDown color={colors.brandPrimary} size={14} />
+              <Text style={styles.deskSecondaryBtnText}>Laporan PDF</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: "/transaction-form", params: { jenis: "masuk" } })}
+              style={styles.deskPrimaryBtn}
+              activeOpacity={0.85}
+              testID="cashflow-add-desk"
+            >
+              <Plus color={colors.onBrand} size={16} />
+              <Text style={styles.deskPrimaryBtnText}>Catat Transaksi</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <AppHeader
+          title="Cashflow"
+          subtitle="Kas masuk & keluar"
+          right={
+            <TouchableOpacity
+              onPress={() => downloadCashflowPdf()}
+              style={styles.pdfBtn}
+              activeOpacity={0.85}
+              testID="cashflow-pdf"
+              hitSlop={6}
+            >
+              <FileDown color={colors.brandPrimary} size={16} />
+              <Text style={styles.pdfText}>PDF</Text>
+            </TouchableOpacity>
+          }
+        />
+      )}
 
       <View style={styles.totalsRow}>
         <TotalCard label="Kas Masuk" value={totals.masuk} color={colors.success} icon={<ArrowDownCircle color={colors.success} size={18} />} testID="totals-masuk" />
@@ -122,26 +166,28 @@ export default function CashflowScreen() {
         renderItem={({ item }) => <TxRow tx={item} onDelete={() => confirmDelete(item)} />}
       />
 
-      <View style={[styles.fabRow, { bottom: bottomChrome + 16 }]}>
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => router.push({ pathname: "/transaction-form", params: { jenis: "masuk" } })}
-          style={[styles.fab, { backgroundColor: colors.success }]}
-          testID="cashflow-fab-masuk"
-        >
-          <Plus color={colors.onBrand} size={18} />
-          <Text style={styles.fabText}>Masuk</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => router.push({ pathname: "/transaction-form", params: { jenis: "keluar" } })}
-          style={[styles.fab, { backgroundColor: colors.error }]}
-          testID="cashflow-fab-keluar"
-        >
-          <Plus color={colors.onBrand} size={18} />
-          <Text style={styles.fabText}>Keluar</Text>
-        </TouchableOpacity>
-      </View>
+      {!isDesktop ? (
+        <View style={[styles.fabRow, { bottom: bottomChrome + 16 }]}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => router.push({ pathname: "/transaction-form", params: { jenis: "masuk" } })}
+            style={[styles.fab, { backgroundColor: colors.success }]}
+            testID="cashflow-fab-masuk"
+          >
+            <Plus color={colors.onBrand} size={18} />
+            <Text style={styles.fabText}>Masuk</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => router.push({ pathname: "/transaction-form", params: { jenis: "keluar" } })}
+            style={[styles.fab, { backgroundColor: colors.error }]}
+            testID="cashflow-fab-keluar"
+          >
+            <Plus color={colors.onBrand} size={18} />
+            <Text style={styles.fabText}>Keluar</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -298,4 +344,36 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   fabText: { color: colors.onBrand, fontWeight: "800", fontSize: 14 },
+
+  pdfBtn: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.pill,
+    borderWidth: 1, borderColor: colors.brandPrimary,
+  },
+  pdfText: { color: colors.brandPrimary, fontWeight: "800", fontSize: 11 },
+
+  deskTitleBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  deskTitle: { fontSize: 22, fontWeight: "900", color: colors.onSurface, letterSpacing: 0.2 },
+  deskPrimaryBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: spacing.md, paddingVertical: 9,
+    borderRadius: radius.pill, backgroundColor: colors.brandPrimary,
+  },
+  deskPrimaryBtnText: { color: colors.onBrand, fontWeight: "800", fontSize: 12 },
+  deskSecondaryBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: spacing.md, paddingVertical: 9,
+    borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  deskSecondaryBtnText: { color: colors.brandPrimary, fontWeight: "800", fontSize: 12 },
 });

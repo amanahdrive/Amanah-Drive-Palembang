@@ -1,0 +1,38 @@
+{
+  "summary": "FULL PASS. Backend 34/34 pytest cases PASS (15 from existing suite + 19 new in test_amanah_drive_v2.py). New coverage: dashboard pengingat_pembayaran & jadwal_hari_ini fields, GET /instrukturs, POST /transactions siswa_id -> auto-recompute sudah_dibayar (verified 0 -> 500k -> 800k), DELETE transaction -> decrement sudah_dibayar (800k -> 300k), schedules CRUD + GET ?tanggal=YYYY-MM-DD + soft delete, GET /reports/cashflow default returns text/html with 'Laporan Cashflow' + Indonesian month, ?bulan=2026-02 returns 'Februari 2026', invalid bulan -> 400. No _id leak anywhere. Frontend DESKTOP (1440x900): sidebar (dashboard/siswa/jadwal/cashflow/profil), desktop-topbar, desktop-dashboard, 4 metric cards (metric-kas-masuk/saldo/on-progress/sesi-hari-ini) and jadwal-table all render; sidebar navigation to siswa-screen, jadwal-screen, cashflow-screen all work. Frontend MOBILE (390x844): Dashboard shows 4 reminder cards (reminder-{siswa_id}) with 2 reminder-wa-{siswa_id} buttons (2 reminders have phone, 2 don't — this is correct behavior per whatsapp.ts guard). Siswa tab shows 5 student-wa-{id} buttons. Cashflow tab has cashflow-pdf button. New Jadwal tab (tab-jadwal) renders jadwal-screen with 7 jadwal-day-YYYY-MM-DD week navigator items and jadwal-fab-add FAB; tapping FAB opens the schedule form (schedule-form-save button confirmed via screenshot). Only non-blocking warnings: 'shadow*' style props and 'props.pointerEvents' deprecations on web.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "Shadow styles", "issue": "'shadow*' style props are deprecated on web; migrate to 'boxShadow'. Non-blocking. Reference: /app/frontend/app/(tabs)/index.tsx, siswa.tsx, src/components/desktop-dashboard.tsx and sidebar.tsx."},
+      {"component": "pointerEvents prop", "issue": "'props.pointerEvents is deprecated. Use style.pointerEvents' warning on web (likely from React Navigation / internal RN component). Non-blocking."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_amanah_drive.py",
+    "/app/backend/tests/test_amanah_drive_v2.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Optional nicety) Add a `testID=\"schedule-form\"` on the root View of /app/frontend/app/schedule-form.tsx for easier automated detection — the form already works and schedule-form-save is tappable; this is purely a testing convenience.",
+    "(Optional, non-blocking) Migrate deprecated shadow* props to boxShadow and props.pointerEvents to style.pointerEvents to clean up web console warnings."
+  ],
+  "critical_code_review_comments": [
+    "server.py: recompute_student_payment correctly recalculates from scratch — verified create (adds), additional create (accumulates), delete (decrements).",
+    "server.py: GET /reports/cashflow correctly filters by month and generates well-structured HTML suitable for client-side print-to-PDF.",
+    "server.py: no MongoDB _id leaks — all queries use projection {\"_id\": 0}.",
+    "server.py still uses deprecated @app.on_event('startup'/'shutdown') — functional but FastAPI lifespan is now preferred.",
+    "schedule-form.tsx has no root testID — only child testIDs. Minor testing convenience."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_amanah_drive_v2.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Backend tests create and clean up TEST_Recompute_Siswa (hard dependency on recompute flow). TEST_Pak_Budi instruktur ephemerally added via schedule then schedule soft-deleted; name may remain in /api/instrukturs distinct result because schedules are soft-deleted (deleted_at excluded correctly). No manual seed required.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 4 testing-request feature groups PASS end-to-end (PDF report, payment reminders, instructor schedule, WA buttons) plus desktop admin console shell. Backend regression suite is 34 tests in /app/backend/tests/ — safe to reuse. If main agent adds new /api endpoints, extend test_amanah_drive_v2.py.",
+  "rca_of_issue": "N/A — no bugs reproduced in this iteration."
+}

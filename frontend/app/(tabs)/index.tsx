@@ -21,15 +21,27 @@ import {
   Plus,
   TrendingUp,
   Wallet,
+  MessageCircle,
+  AlertCircle,
+  Clock,
 } from "lucide-react-native";
 
 import { AppHeader } from "@/src/components/app-header";
-import { api } from "@/src/api/client";
+import { DesktopDashboard } from "@/src/components/desktop-dashboard";
+import { api, PaymentReminder, Schedule } from "@/src/api/client";
 import { colors, radius, spacing } from "@/src/theme";
 import { formatRupiah, formatRupiahShort } from "@/src/lib/format";
+import { openWhatsApp } from "@/src/lib/whatsapp";
+import { useIsDesktop } from "@/src/hooks/use-breakpoint";
 import { usesNativeTabs } from "@/src/navigation";
 
 export default function DashboardScreen() {
+  const isDesktop = useIsDesktop();
+  if (isDesktop) return <DesktopDashboard />;
+  return <MobileDashboard />;
+}
+
+function MobileDashboard() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const bottomChrome = usesNativeTabs ? insets.bottom : 0;
@@ -41,7 +53,7 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.screen} testID="dashboard-screen">
-      <AppHeader title="Amanah Drive" subtitle="Dashboard Operasional" />
+      <AppHeader title="Amanah Drive" subtitle="Dashboard Operasional" showProfil />
       <ScrollView
         contentContainerStyle={{
           paddingBottom: (bottomChrome || 0) + spacing.xxl,
@@ -118,6 +130,51 @@ export default function DashboardScreen() {
                 testID="card-kas-keluar-bulan"
               />
             </View>
+
+            {/* Reminders */}
+            {data && data.pengingat_pembayaran.length > 0 ? (
+              <>
+                <View style={styles.sectionRow}>
+                  <Text style={styles.sectionTitle}>Pengingat Pembayaran</Text>
+                  <View style={styles.remBadge}>
+                    <Text style={styles.remBadgeText}>{data.pengingat_pembayaran.length}</Text>
+                  </View>
+                </View>
+                <View style={{ gap: spacing.sm, paddingHorizontal: spacing.lg }}>
+                  {data.pengingat_pembayaran.slice(0, 3).map((r) => (
+                    <ReminderCard key={r.siswa_id} r={r} />
+                  ))}
+                  {data.pengingat_pembayaran.length > 3 ? (
+                    <TouchableOpacity
+                      onPress={() => router.push("/(tabs)/siswa")}
+                      style={styles.remMore}
+                      testID="pengingat-more"
+                    >
+                      <Text style={styles.remMoreText}>
+                        Lihat {data.pengingat_pembayaran.length - 3} lainnya →
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </>
+            ) : null}
+
+            {/* Jadwal hari ini */}
+            {data && data.jadwal_hari_ini.length > 0 ? (
+              <>
+                <View style={styles.sectionRow}>
+                  <Text style={styles.sectionTitle}>Jadwal Hari Ini</Text>
+                  <TouchableOpacity onPress={() => router.push("/(tabs)/jadwal")}>
+                    <Text style={styles.linkText}>Semua →</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={{ gap: spacing.sm, paddingHorizontal: spacing.lg }}>
+                  {data.jadwal_hari_ini.slice(0, 3).map((s) => (
+                    <TodayScheduleCard key={s.id} s={s} />
+                  ))}
+                </View>
+              </>
+            ) : null}
 
             {/* 7-day chart */}
             <Text style={styles.sectionTitle}>Cashflow 7 Hari</Text>
@@ -196,12 +253,71 @@ export default function DashboardScreen() {
                 color={colors.brandPrimary}
                 onPress={() => router.push("/student-form")}
                 testID="action-tambah-siswa"
-                full
+              />
+              <ActionTile
+                label="Tambah Jadwal"
+                color={colors.brandSecondary}
+                onPress={() => router.push("/schedule-form")}
+                testID="action-tambah-jadwal"
               />
             </View>
           </>
         )}
       </ScrollView>
+    </View>
+  );
+}
+
+function ReminderCard({ r }: { r: PaymentReminder }) {
+  const message =
+    `Halo ${r.nama}, 🙏\n\n` +
+    `Mengingatkan untuk pembayaran kursus di *Amanah Drive*:\n` +
+    `• Paket: ${r.paket}\n` +
+    `• Total: ${formatRupiah(r.harga_paket)}\n` +
+    `• Sudah dibayar: ${formatRupiah(r.sudah_dibayar)}\n` +
+    `• *Sisa tagihan: ${formatRupiah(r.sisa_bayar)}*\n\n` +
+    `Mohon konfirmasi untuk pembayaran selanjutnya. Terima kasih 🚗`;
+  return (
+    <View style={styles.remCard} testID={`reminder-${r.siswa_id}`}>
+      <View style={styles.remIcon}>
+        <AlertCircle color={colors.warning} size={18} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.remName} numberOfLines={1}>
+          {r.nama}
+        </Text>
+        <Text style={styles.remSub}>
+          Sisa <Text style={styles.remSubBold}>{formatRupiah(r.sisa_bayar)}</Text> • {r.paket}
+        </Text>
+      </View>
+      <TouchableOpacity
+        onPress={() => openWhatsApp(r.telepon, message)}
+        activeOpacity={0.85}
+        style={styles.waBtn}
+        testID={`reminder-wa-${r.siswa_id}`}
+      >
+        <MessageCircle color={colors.onBrand} size={14} />
+        <Text style={styles.waText}>WA</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function TodayScheduleCard({ s }: { s: Schedule }) {
+  return (
+    <View style={styles.todayCard} testID={`today-schedule-${s.id}`}>
+      <View style={styles.todayTime}>
+        <Clock color={colors.brandPrimary} size={14} />
+        <Text style={styles.todayTimeText}>
+          {s.jam_mulai} - {s.jam_selesai}
+        </Text>
+      </View>
+      <Text style={styles.todayInstruktur} numberOfLines={1}>
+        {s.instruktur}
+      </Text>
+      <Text style={styles.todaySiswa} numberOfLines={1}>
+        {s.siswa_nama || "Tanpa siswa"}
+      </Text>
     </View>
   );
 }
@@ -237,23 +353,17 @@ function ActionTile({
   color,
   onPress,
   testID,
-  full,
 }: {
   label: string;
   color: string;
   onPress: () => void;
   testID?: string;
-  full?: boolean;
 }) {
   return (
     <TouchableOpacity
       activeOpacity={0.85}
       onPress={onPress}
-      style={[
-        styles.actionTile,
-        { backgroundColor: color },
-        full && { flex: 1 },
-      ]}
+      style={[styles.actionTile, { backgroundColor: color }]}
       testID={testID}
     >
       <Plus color={colors.onBrand} size={18} />
@@ -276,18 +386,8 @@ function Chart7Days({ data }: { data: { label: string; masuk: number; keluar: nu
         return (
           <View key={idx} style={styles.chartCol} testID={`chart-col-${idx}`}>
             <View style={styles.chartBars}>
-              <View
-                style={[
-                  styles.bar,
-                  { height: inH, backgroundColor: colors.success },
-                ]}
-              />
-              <View
-                style={[
-                  styles.bar,
-                  { height: outH, backgroundColor: colors.error, marginLeft: 2 },
-                ]}
-              />
+              <View style={[styles.bar, { height: inH, backgroundColor: colors.success }]} />
+              <View style={[styles.bar, { height: outH, backgroundColor: colors.error, marginLeft: 2 }]} />
             </View>
             <Text style={styles.chartLabel}>{d.label}</Text>
           </View>
@@ -337,26 +437,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  heroLabel: {
-    color: colors.onBrand,
-    fontSize: 13,
-    fontWeight: "600",
-    letterSpacing: 0.4,
-    opacity: 0.9,
-  },
-  heroValue: {
-    marginTop: spacing.md,
-    color: colors.onBrand,
-    fontSize: 30,
-    fontWeight: "900",
-    letterSpacing: 0.2,
-  },
-  heroRow: {
-    marginTop: spacing.lg,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.lg,
-  },
+  heroLabel: { color: colors.onBrand, fontSize: 13, fontWeight: "600", letterSpacing: 0.4, opacity: 0.9 },
+  heroValue: { marginTop: spacing.md, color: colors.onBrand, fontSize: 30, fontWeight: "900", letterSpacing: 0.2 },
+  heroRow: { marginTop: spacing.lg, flexDirection: "row", alignItems: "center", gap: spacing.lg },
   heroStat: { flex: 1, flexDirection: "column", gap: 2 },
   heroStatLabel: { color: colors.onBrand, opacity: 0.75, fontSize: 11, fontWeight: "600", marginTop: 2 },
   heroStatValue: { color: colors.onBrand, fontSize: 15, fontWeight: "700" },
@@ -371,6 +454,46 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
     letterSpacing: 0.2,
   },
+  sectionRow: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingRight: spacing.lg,
+  },
+  linkText: {
+    color: colors.brandSecondary, fontSize: 12, fontWeight: "700", marginTop: spacing.xl,
+  },
+  remBadge: {
+    marginTop: spacing.xl, backgroundColor: colors.warning, paddingHorizontal: 8, paddingVertical: 2,
+    borderRadius: radius.pill, minWidth: 22, alignItems: "center",
+  },
+  remBadgeText: { color: colors.onWarning, fontSize: 11, fontWeight: "800" },
+
+  remCard: {
+    flexDirection: "row", alignItems: "center", gap: spacing.sm,
+    backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md,
+    borderWidth: 1, borderColor: colors.warning + "33",
+  },
+  remIcon: {
+    width: 32, height: 32, borderRadius: 16, backgroundColor: colors.warning + "18",
+    alignItems: "center", justifyContent: "center",
+  },
+  remName: { fontSize: 14, fontWeight: "800", color: colors.onSurface },
+  remSub: { fontSize: 11, color: colors.muted, marginTop: 1 },
+  remSubBold: { color: colors.error, fontWeight: "800" },
+  waBtn: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    backgroundColor: "#25D366", paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.pill,
+  },
+  waText: { color: colors.onBrand, fontWeight: "800", fontSize: 11 },
+  remMore: { alignItems: "center", paddingVertical: spacing.sm },
+  remMoreText: { color: colors.brandSecondary, fontSize: 12, fontWeight: "700" },
+
+  todayCard: {
+    backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md,
+    borderWidth: 1, borderColor: colors.divider,
+  },
+  todayTime: { flexDirection: "row", alignItems: "center", gap: 4 },
+  todayTimeText: { color: colors.brandPrimary, fontWeight: "800", fontSize: 12 },
+  todayInstruktur: { marginTop: 4, fontSize: 13, fontWeight: "700", color: colors.onSurface },
+  todaySiswa: { fontSize: 11, color: colors.muted, marginTop: 2 },
 
   gridRow: {
     flexDirection: "row",
@@ -387,54 +510,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.divider,
   },
-  summaryCard: {
-    flex: 1,
-    marginHorizontal: 0,
-  },
+  summaryCard: { flex: 1, marginHorizontal: 0 },
   summaryIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.sm,
+    width: 36, height: 36, borderRadius: 10,
+    alignItems: "center", justifyContent: "center", marginBottom: spacing.sm,
   },
-  summaryLabel: {
-    fontSize: 12,
-    color: colors.muted,
-    fontWeight: "600",
-  },
-  summaryValue: {
-    marginTop: 2,
-    fontSize: 18,
-    fontWeight: "800",
-    color: colors.onSurface,
-  },
+  summaryLabel: { fontSize: 12, color: colors.muted, fontWeight: "600" },
+  summaryValue: { marginTop: 2, fontSize: 18, fontWeight: "800", color: colors.onSurface },
 
   actionTile: {
-    flex: 1,
-    height: 56,
-    borderRadius: radius.md,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
+    flex: 1, height: 56, borderRadius: radius.md,
+    alignItems: "center", justifyContent: "center", flexDirection: "row", gap: spacing.sm,
   },
   actionText: { color: colors.onBrand, fontWeight: "700", fontSize: 14 },
 
-  chartLegend: {
-    flexDirection: "row",
-    gap: spacing.lg,
-    marginBottom: spacing.md,
-  },
+  chartLegend: { flexDirection: "row", gap: spacing.lg, marginBottom: spacing.md },
   legendItem: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   legendDot: { width: 10, height: 10, borderRadius: 5 },
   legendText: { fontSize: 12, color: colors.muted, fontWeight: "600" },
   chartWrap: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    height: 140,
+    flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", height: 140,
   },
   chartCol: { alignItems: "center", flex: 1 },
   chartBars: { flexDirection: "row", alignItems: "flex-end", height: 110 },
